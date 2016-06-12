@@ -12,7 +12,7 @@ var InitDemo = function() {
                     alert('Fatal Error loading Fragment Shader');
                     console.error(fsErr);
                 } else {
-                    loadJSONResource('/obj.json',function(modelErr, modelObj){
+                    loadJSONResource('/obj.json',function(modelErr, model1Obj){
                         if (modelErr) {
                             alert('Fatal Error loading model JSON');
                             console.error(modelErr);
@@ -22,7 +22,7 @@ var InitDemo = function() {
                                     alert('Error loading image (see console)');
                                     console.log(imgErr);
                                 } else {
-                                    RunDemo(vsText, fsText, img, modelObj);
+                                    RunDemo(vsText, fsText, img, model1Obj);
                                 }
                             });
                         }
@@ -32,9 +32,9 @@ var InitDemo = function() {
         }
     });
 };
-var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, modelObj) {
+var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, model) {
 	console.log('This is working');
-	model = modelObj;
+	model = model;
 
 	var canvas = document.getElementById('game-surface');
 	gl = canvas.getContext('webgl');
@@ -92,21 +92,32 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, modelOb
 	//
 	// Create buffer
 	//
-	var objVertices = modelObj.meshes[0].vertices;
-	var objIndicies = [].concat.apply([], modelObj.meshes[0].faces);
-	var texCoords = modelObj.meshes[0].texturecoords[0];
-
+	//*
+	var modelVertices = model.meshes[0].vertices;
+	var modelIndices = [].concat.apply([], model.meshes[0].faces);
+	var modelTexCoords = model.meshes[0].texturecoords[0];
+	var modelNormals = model.meshes[0].normals;
+    /*
+	// bench mode
+	var modelVertices = model.vertices;
+	var modelIndices = [].concat.apply([], model.faces);
+	var modelNormals = model.normals;
+    //*/
 	var modelPosVertexBufferObject = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, modelPosVertexBufferObject);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(objVertices), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelVertices), gl.STATIC_DRAW);
 
 	var modelTexCoordVertexBufferObject = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, modelTexCoordVertexBufferObject);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelTexCoords), gl.STATIC_DRAW);
 
 	var modelIndexBufferObject = gl.createBuffer();
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, modelIndexBufferObject);
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(objIndicies), gl.STATIC_DRAW);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(modelIndices), gl.STATIC_DRAW);
+
+	var modelNormalBufferObject = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, modelNormalBufferObject);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelNormals), gl.STATIC_DRAW);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, modelPosVertexBufferObject);
 	var positionAtrribLocation = gl.getAttribLocation(program, 'vertPosition');
@@ -119,7 +130,7 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, modelOb
 		0 //offset from the beginning of a single vertex to this attribute
 	);
 	gl.enableVertexAttribArray(positionAtrribLocation);
-
+    //*
     gl.bindBuffer(gl.ARRAY_BUFFER, modelTexCoordVertexBufferObject);
 	var texCoordAtrribLocation = gl.getAttribLocation(program, 'vertTexCoord');
 	gl.vertexAttribPointer(
@@ -131,6 +142,17 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, modelOb
 		0
 	);
 	gl.enableVertexAttribArray(texCoordAtrribLocation);
+    //*/
+	gl.bindBuffer(gl.ARRAY_BUFFER, modelNormalBufferObject);
+	var normalAtrribLocation = gl.getAttribLocation(program, 'vertNormal');
+	gl.vertexAttribPointer(
+	    normalAtrribLocation,
+	    3, gl.FLOAT,
+	    gl.TRUE,
+	    3 * Float32Array.BYTES_PER_ELEMENT,
+	    0
+	);
+	gl.enableVertexAttribArray(normalAtrribLocation);
 
 	//
 	//create texture
@@ -151,7 +173,7 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, modelOb
 		textureImg
 	);
 	gl.bindTexture(gl.TEXTURE_2D, null);
-
+    //*/
 	// Tell WebGL state machine which program should be active;
 	gl.useProgram(program);
 
@@ -175,6 +197,18 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, modelOb
 	var xRotationMatrix = new Float32Array(16);
 	var yRotationMatrix = new Float32Array(16);
 
+	//
+	// Lighting Information
+	//
+	gl.useProgram(program);
+
+	var ambientUniformLocation = gl.getUniformLocation(program, 'ambientLightIntensity');
+	var sunlightDirUniformLocation = gl.getUniformLocation(program, 'sunlightDirection');
+	var sunlightIntUniformLocation = gl.getUniformLocation(program, 'sunlightIntensity');
+
+	gl.uniform3f(ambientUniformLocation, 0.2, 0.2, 0.2);
+	gl.uniform3f(sunlightDirUniformLocation, 3.0, 4.0, -2.0);
+	gl.uniform3f(sunlightIntUniformLocation, 0.9, 0.9, 0.9);
 
 	//
 	//Main render loop
@@ -183,10 +217,10 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, modelOb
 	mat4.identity(identityMatrix);
 	var angle = 0;
 	var loop = function () {
-		angle = performance.now() / 1000 / 12 * 2 * Math.PI;
+		angle = performance.now() / 1000 / 6 * 2 * Math.PI;
 		//mat4.rotate(worldMatrix, identityMatrix, angle, [0,1,0]);
 		mat4.rotate(yRotationMatrix, identityMatrix, angle, [0,1,0]);
-		mat4.rotate(xRotationMatrix, identityMatrix, angle, [1,0,0]);
+		mat4.rotate(xRotationMatrix, identityMatrix, angle / 4, [1,0,0]);
 		mat4.mul(worldMatrix, yRotationMatrix, xRotationMatrix);
 		gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, worldMatrix);
 
@@ -195,7 +229,7 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, modelOb
 
 		gl.bindTexture(gl.TEXTURE_2D,objTexture);
 		gl.activeTexture(gl.TEXTURE0);
-		gl.drawElements(gl.TRIANGLES, objIndicies.length, gl.UNSIGNED_SHORT, 0);
+		gl.drawElements(gl.TRIANGLES, modelIndices.length, gl.UNSIGNED_SHORT, 0);
 
 		requestAnimationFrame(loop);
 	};
