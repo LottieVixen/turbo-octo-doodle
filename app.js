@@ -200,6 +200,7 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, model) 
 	//
 	// Lighting Information
 	//
+	/*
 	gl.useProgram(program);
 
 	var ambientUniformLocation = gl.getUniformLocation(program, 'ambientLightIntensity');
@@ -209,7 +210,7 @@ var RunDemo = function(vertexShaderText, fragmentShaderText, textureImg, model) 
 	gl.uniform3f(ambientUniformLocation, 0.2, 0.2, 0.2);
 	gl.uniform3f(sunlightDirUniformLocation, 3.0, 4.0, -2.0);
 	gl.uniform3f(sunlightIntUniformLocation, 0.9, 0.9, 0.9);
-
+    */
 	//
 	//Main render loop
 	//
